@@ -1,9 +1,13 @@
+// ignore_for_file: unnecessary_const
+
 import 'dart:developer';
 import 'dart:io';
 
 import 'package:band_names_app/models/band.dart';
+import 'package:band_names_app/services/socket_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -22,6 +26,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final socketService = Provider.of<SocketService>(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -29,6 +35,17 @@ class _HomeScreenState extends State<HomeScreen> {
           style: TextStyle(color: Colors.black87),
         ),
         backgroundColor: Colors.white,
+        actions: [
+          CircleAvatar(
+            radius: 15,
+            foregroundColor: Colors.white,
+            backgroundColor: socketService.serverStatus == ServerStatus.offline ? Colors.red : Colors.green[800],
+            child: Icon(
+              socketService.serverStatus == ServerStatus.online ? Icons.cloud_done : Icons.cloud_off,
+              size: 20,
+            ),
+          )
+        ],
       ),
       body: ListView.builder(
         itemCount: bands.length,
@@ -97,14 +114,28 @@ class _BandTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: Colors.blue[100],
-        child: Text(band.name.substring(0, 2)),
+    return Dismissible(
+      key: Key(band.id),
+      direction: DismissDirection.startToEnd,
+      onDismissed: (direction) {},
+      background: Container(
+        padding: const EdgeInsets.only(left: 10),
+        alignment: Alignment.centerLeft,
+        color: Colors.red,
+        child: const Text(
+          'Delete Band',
+          style: const TextStyle(color: Colors.white),
+        ),
       ),
-      title: Text(band.name),
-      trailing: Text('${band.votes}', style: const TextStyle(fontSize: 20)),
-      onTap: () => log(band.name),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: Colors.blue[100],
+          child: Text(band.name.substring(0, 2)),
+        ),
+        title: Text(band.name),
+        trailing: Text('${band.votes}', style: const TextStyle(fontSize: 20)),
+        onTap: () => log(band.name),
+      ),
     );
   }
 }
