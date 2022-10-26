@@ -10,8 +10,8 @@ class Band {
   });
 
   factory Band.fromMap(Map<String, dynamic> map) => Band(
-        id: map["id"],
-        name: map["name"],
-        votes: map["votes"],
+        id: map["id"] ?? 'no-id',
+        name: map["name"] ?? 'no-name',
+        votes: map["votes"] ?? 0,
       );
 }

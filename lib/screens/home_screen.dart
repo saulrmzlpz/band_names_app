@@ -1,12 +1,12 @@
 // ignore_for_file: unnecessary_const
 
-import 'dart:developer';
 import 'dart:io';
 
 import 'package:band_names_app/models/band.dart';
 import 'package:band_names_app/services/socket_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:pie_chart/pie_chart.dart';
 import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -17,12 +17,19 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  List<Band> bands = [
-    Band(id: '1', name: 'Metallica', votes: 5),
-    Band(id: '2', name: 'Queen', votes: 5),
-    Band(id: '3', name: 'Heroes del silencio', votes: 5),
-    Band(id: '4', name: 'Bon Jovi', votes: 5),
-  ];
+  List<Band> bands = [];
+
+  @override
+  void initState() {
+    final socketService = Provider.of<SocketService>(context, listen: false);
+    socketService.socket?.on('active-bands', _handleActiveBands);
+    super.initState();
+  }
+
+  void _handleActiveBands(dynamic payload) {
+    bands = (payload as List).map((band) => Band.fromMap(band)).toList();
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
           CircleAvatar(
             radius: 15,
             foregroundColor: Colors.white,
-            backgroundColor: socketService.serverStatus == ServerStatus.offline ? Colors.red : Colors.green[800],
+            backgroundColor: socketService.serverStatus == ServerStatus.online ? Colors.green[800] : Colors.red,
             child: Icon(
               socketService.serverStatus == ServerStatus.online ? Icons.cloud_done : Icons.cloud_off,
               size: 20,
@@ -47,9 +54,27 @@ class _HomeScreenState extends State<HomeScreen> {
           )
         ],
       ),
-      body: ListView.builder(
-        itemCount: bands.length,
-        itemBuilder: (context, index) => _BandTile(band: bands[index]),
+      body: Column(
+        children: [
+          if (bands.isNotEmpty)
+            SizedBox(
+                height: 200,
+                child: PieChart(
+                  dataMap: Map.fromEntries(bands.map((band) => MapEntry(band.name, band.votes.toDouble()))),
+                  chartValuesOptions: const ChartValuesOptions(
+                    showChartValuesInPercentage: true,
+                    decimalPlaces: 0,
+                    showChartValueBackground: false,
+                  ),
+                  chartType: ChartType.ring,
+                )),
+          Expanded(
+            child: ListView.builder(
+              itemCount: bands.length,
+              itemBuilder: (context, index) => _BandTile(band: bands[index]),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addNewBand,
@@ -97,8 +122,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _addBandToList(String name) {
-    if (name.length > 1) {
-      setState(() => bands.add(Band(id: DateTime.now().millisecondsSinceEpoch.toString(), name: name)));
+    if (name.isNotEmpty) {
+      Provider.of<SocketService>(context, listen: false).socket?.emit('add-band', {'name': name});
     }
     Navigator.pop(context);
   }
@@ -114,18 +139,17 @@ class _BandTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final socketService = Provider.of<SocketService>(context, listen: false);
+
     return Dismissible(
       key: Key(band.id),
       direction: DismissDirection.startToEnd,
-      onDismissed: (direction) {},
+      onDismissed: (_) => socketService.socket?.emit('delete-band', {'id': band.id}),
       background: Container(
         padding: const EdgeInsets.only(left: 10),
         alignment: Alignment.centerLeft,
         color: Colors.red,
-        child: const Text(
-          'Delete Band',
-          style: const TextStyle(color: Colors.white),
-        ),
+        child: const Text('Delete Band', style: const TextStyle(color: Colors.white)),
       ),
       child: ListTile(
         leading: CircleAvatar(
@@ -134,7 +158,7 @@ class _BandTile extends StatelessWidget {
         ),
         title: Text(band.name),
         trailing: Text('${band.votes}', style: const TextStyle(fontSize: 20)),
-        onTap: () => log(band.name),
+        onTap: () => socketService.socket?.emit('vote-band', {'id': band.id}),
       ),
     );
   }

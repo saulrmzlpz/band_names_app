@@ -11,8 +11,9 @@ class SocketService extends ChangeNotifier {
   io.Socket? _socket;
 
   ServerStatus get serverStatus => _serverStatus;
+
   io.Socket? get socket => _socket;
-  void get emit => _socket?.emit;
+  Function? get emit => _socket?.emit;
 
   SocketService() {
     _initConfig();
